@@ -163,23 +163,25 @@ function App() {
     <div className="flex flex-col min-h-screen">
       <header className="flex sticky top-0 z-10 justify-between items-center p-4 border-b backdrop-blur-sm bg-white/80">
         <h2 className="text-xl font-semibold accent-text">Daily App</h2>
-        <div className="flex gap-4 items-center">
-          <button 
-            onClick={() => setActiveTab('todos')}
-            className={`px-4 py-2 rounded ${activeTab === 'todos' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}
-          >
-            Tasks
-          </button>
-          <button 
-            onClick={() => setActiveTab('documents')}
-            className={`px-4 py-2 rounded ${activeTab === 'documents' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}
-          >
-            Documents
-          </button>
-          <SignOutButton />
-        </div>
+        <Authenticated>
+          <div className="flex gap-4 items-center">
+            <button 
+              onClick={() => setActiveTab('todos')}
+              className={`px-4 py-2 rounded ${activeTab === 'todos' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}
+            >
+              Tasks
+            </button>
+            <button 
+              onClick={() => setActiveTab('documents')}
+              className={`px-4 py-2 rounded ${activeTab === 'documents' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}
+            >
+              Documents
+            </button>
+            <SignOutButton />
+          </div>
+        </Authenticated>
       </header>
-      <main className="flex flex-1 justify-center items-start p-8">
+      <main className="flex flex-1 justify-center items-center p-8">
         <div className="mx-auto w-full max-w-3xl">
           <Authenticated>
             {activeTab === 'todos' ? <TodoContent /> : <DocumentContent />}
