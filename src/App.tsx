@@ -1,10 +1,11 @@
 import { Authenticated, Unauthenticated, useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { SignInForm } from "./SignInForm";
-import { SignOutButton } from "./SignOutButton";
+import { SignInForm } from "./components/SignInForm";
+import { SignOutButton } from "./components/SignOutButton";
 import { Toaster } from "sonner";
 import { useState } from "react";
 import { Id } from "../convex/_generated/dataModel";
+import { DocumentEditor } from "./components/DocumentEditor";
 import { 
   MDXEditor, 
   headingsPlugin, 
@@ -156,15 +157,36 @@ const DrawingEditor = track(({ todoId, drawingData }: { todoId: Id<"todos">, dra
 });
 
 function App() {
+  const [activeTab, setActiveTab] = useState<'todos' | 'documents'>('todos');
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="flex sticky top-0 z-10 justify-between items-center p-4 border-b backdrop-blur-sm bg-white/80">
-        <h2 className="text-xl font-semibold accent-text">ToDo App</h2>
-        <SignOutButton />
+        <h2 className="text-xl font-semibold accent-text">Daily App</h2>
+        <div className="flex gap-4 items-center">
+          <button 
+            onClick={() => setActiveTab('todos')}
+            className={`px-4 py-2 rounded ${activeTab === 'todos' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}
+          >
+            Tasks
+          </button>
+          <button 
+            onClick={() => setActiveTab('documents')}
+            className={`px-4 py-2 rounded ${activeTab === 'documents' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}
+          >
+            Documents
+          </button>
+          <SignOutButton />
+        </div>
       </header>
-      <main className="flex flex-1 justify-center items-center p-8">
+      <main className="flex flex-1 justify-center items-start p-8">
         <div className="mx-auto w-full max-w-3xl">
-          <Content />
+          <Authenticated>
+            {activeTab === 'todos' ? <TodoContent /> : <DocumentContent />}
+          </Authenticated>
+          <Unauthenticated>
+            <SignInForm />
+          </Unauthenticated>
         </div>
       </main>
       <Toaster />
@@ -172,7 +194,94 @@ function App() {
   );
 }
 
-function Content() {
+function DocumentContent() {
+  const documents = useQuery(api.documents.list) ?? [];
+  const createDocument = useMutation(api.documents.create);
+  const deleteDocument = useMutation(api.documents.remove);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<Id<"documents"> | null>(null);
+
+  const handleCreateDocument = async () => {
+    const documentId = await createDocument();
+    setSelectedDocumentId(documentId);
+  };
+
+  if (selectedDocumentId) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <button
+            onClick={() => setSelectedDocumentId(null)}
+            className="px-4 py-2 text-blue-500 hover:text-blue-700"
+          >
+            ← Back to Documents
+          </button>
+        </div>
+        <DocumentEditor documentId={selectedDocumentId} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div>
+        <h1 className="mb-4 text-3xl font-bold text-center accent-text">My Documents</h1>
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={handleCreateDocument}
+            className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600"
+          >
+            New Document
+          </button>
+        </div>
+        {documents.length === 0 ? (
+          <div className="p-8 text-center text-gray-500 rounded-lg border">
+            <p>You don't have any documents yet. Create your first document!</p>
+          </div>
+        ) : (
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {documents.map((document) => (
+              <li
+                key={document._id}
+                className="overflow-hidden rounded-lg border transition-shadow duration-200 hover:shadow-md"
+              >
+                <button
+                  onClick={() => setSelectedDocumentId(document._id)}
+                  className="flex flex-col w-full h-full text-left"
+                >
+                  <div className="p-4 bg-white">
+                    <h3 className="text-lg font-semibold">{document.title}</h3>
+                    <p className="mt-2 text-sm text-gray-500">
+                      {new Date(document.updatedAt).toLocaleDateString()} • 
+                      {document.content?.length 
+                        ? ` ${document.content.split(' ').length} words` 
+                        : ' Empty document'}
+                    </p>
+                  </div>
+                </button>
+                <div className="flex justify-end p-2 bg-gray-50 border-t">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      if (confirm('Are you sure you want to delete this document?')) {
+                        deleteDocument({ id: document._id });
+                      }
+                    }}
+                    className="px-2 py-1 text-red-500 hover:text-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TodoContent() {
   const todos = useQuery(api.todos.list) ?? [];
   const addTodo = useMutation(api.todos.add);
   const toggleTodo = useMutation(api.todos.toggleComplete);
@@ -219,155 +328,150 @@ function Content() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="mb-4 text-3xl font-bold text-center accent-text">My Tasks</h1>
-        <Authenticated>
-          <form onSubmit={handleSubmit} className="flex gap-2 mb-6">
-            <input
-              type="text"
-              value={newTodo}
-              onChange={(e) => setNewTodo(e.target.value)}
-              placeholder="Add a new task..."
-              className="flex-1 px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
-              disabled={!newTodo.trim()}
-              className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600 disabled:opacity-50"
+        <form onSubmit={handleSubmit} className="flex gap-2 mb-6">
+          <input
+            type="text"
+            value={newTodo}
+            onChange={(e) => setNewTodo(e.target.value)}
+            placeholder="Add a new task..."
+            className="flex-1 px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            type="submit"
+            disabled={!newTodo.trim()}
+            className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600 disabled:opacity-50"
+          >
+            Add
+          </button>
+        </form>
+        <ul className="space-y-4">
+          {todos.map((todo) => (
+            <li
+              key={todo._id}
+              className="overflow-hidden rounded-lg border"
             >
-              Add
-            </button>
-          </form>
-          <ul className="space-y-4">
-            {todos.map((todo) => (
-              <li
-                key={todo._id}
-                className="overflow-hidden rounded-lg border"
-              >
-                <div className="flex gap-2 items-center p-3 bg-white hover:bg-gray-50">
+              <div className="flex gap-2 items-center p-3 bg-white hover:bg-gray-50">
+                <input
+                  type="checkbox"
+                  checked={todo.completed}
+                  onChange={() => toggleTodo({ id: todo._id })}
+                  className="w-5 h-5"
+                />
+                {editingId === todo._id ? (
                   <input
-                    type="checkbox"
-                    checked={todo.completed}
-                    onChange={() => toggleTodo({ id: todo._id })}
-                    className="w-5 h-5"
+                    type="text"
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onBlur={() => handleEdit(todo._id)}
+                    onKeyDown={(e) => e.key === "Enter" && handleEdit(todo._id)}
+                    className="flex-1 px-2 py-1 rounded border"
+                    autoFocus
                   />
-                  {editingId === todo._id ? (
-                    <input
-                      type="text"
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      onBlur={() => handleEdit(todo._id)}
-                      onKeyDown={(e) => e.key === "Enter" && handleEdit(todo._id)}
-                      className="flex-1 px-2 py-1 rounded border"
-                      autoFocus
-                    />
-                  ) : (
-                    <span
-                      onClick={() => startEdit(todo._id, todo.text)}
-                      className={`flex-1 cursor-pointer ${
-                        todo.completed ? "line-through text-gray-500" : ""
-                      }`}
-                    >
-                      {todo.text}
-                    </span>
-                  )}
-                  <button
-                    onClick={() => toggleExpand(todo._id)}
-                    className="px-2 text-gray-500 hover:text-gray-700"
-                    title="Toggle description"
+                ) : (
+                  <span
+                    onClick={() => startEdit(todo._id, todo.text)}
+                    className={`flex-1 cursor-pointer ${
+                      todo.completed ? "line-through text-gray-500" : ""
+                    }`}
                   >
-                    {expandedTodo === todo._id ? "▼" : "▶"}
-                  </button>
-                  <button
-                    onClick={() => toggleDrawing(todo._id)}
-                    className="px-2 text-gray-500 hover:text-gray-700"
-                    title="Toggle drawing"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => moveToNextDay({ id: todo._id })}
-                    className="text-gray-500 hover:text-gray-700"
-                    title="Move to next day"
-                  >
-                    →
-                  </button>
-                  <button
-                    onClick={() => deleteTodo({ id: todo._id })}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    ×
-                  </button>
+                    {todo.text}
+                  </span>
+                )}
+                <button
+                  onClick={() => toggleExpand(todo._id)}
+                  className="px-2 text-gray-500 hover:text-gray-700"
+                  title="Toggle description"
+                >
+                  {expandedTodo === todo._id ? "▼" : "▶"}
+                </button>
+                <button
+                  onClick={() => toggleDrawing(todo._id)}
+                  className="px-2 text-gray-500 hover:text-gray-700"
+                  title="Toggle drawing"
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={() => moveToNextDay({ id: todo._id })}
+                  className="text-gray-500 hover:text-gray-700"
+                  title="Move to next day"
+                >
+                  →
+                </button>
+                <button
+                  onClick={() => deleteTodo({ id: todo._id })}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  ×
+                </button>
+              </div>
+              {expandedTodo === todo._id && (
+                <div className="p-4 bg-gray-50 border-t">
+                  <MDXEditor
+                    markdown={todo.description ?? ""}
+                    onChange={(content) => {
+                      updateDescription({ 
+                        id: todo._id, 
+                        description: content
+                      });
+                    }}
+                    contentEditableClassName="prose prose-slate"
+                    plugins={[
+                      headingsPlugin(),
+                      listsPlugin(),
+                      quotePlugin(),
+                      markdownShortcutPlugin(),
+                      tablePlugin(),
+                      thematicBreakPlugin(),
+                      codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
+                      codeMirrorPlugin({ 
+                        codeBlockLanguages: { 
+                          js: 'JavaScript',
+                          css: 'CSS',
+                          html: 'HTML',
+                          python: 'Python'
+                        }
+                      }),
+                      linkPlugin(),
+                      linkDialogPlugin(),
+                      frontmatterPlugin(),
+                      directivesPlugin(),
+                      toolbarPlugin({
+                        toolbarContents: () => (
+                          <>
+                            <UndoRedo />
+                            <Separator />
+                            <BlockTypeSelect />
+                            <Separator />
+                            <BoldItalicUnderlineToggles />
+                            <CodeToggle />
+                            <Separator />
+                            <ListsToggle />
+                            <Separator />
+                            <CreateLink />
+                            <Separator />
+                            <InsertTable />
+                            <InsertCodeBlock />
+                            <InsertThematicBreak />
+                          </>
+                        )
+                      })
+                    ]}
+                  />
                 </div>
-                {expandedTodo === todo._id && (
-                  <div className="p-4 bg-gray-50 border-t">
-                    <MDXEditor
-                      markdown={todo.description ?? ""}
-                      onChange={(content) => {
-                        updateDescription({ 
-                          id: todo._id, 
-                          description: content
-                        });
-                      }}
-                      contentEditableClassName="prose prose-slate"
-                      plugins={[
-                        headingsPlugin(),
-                        listsPlugin(),
-                        quotePlugin(),
-                        markdownShortcutPlugin(),
-                        tablePlugin(),
-                        thematicBreakPlugin(),
-                        codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
-                        codeMirrorPlugin({ 
-                          codeBlockLanguages: { 
-                            js: 'JavaScript',
-                            css: 'CSS',
-                            html: 'HTML',
-                            python: 'Python'
-                          }
-                        }),
-                        linkPlugin(),
-                        linkDialogPlugin(),
-                        frontmatterPlugin(),
-                        directivesPlugin(),
-                        toolbarPlugin({
-                          toolbarContents: () => (
-                            <>
-                              <UndoRedo />
-                              <Separator />
-                              <BlockTypeSelect />
-                              <Separator />
-                              <BoldItalicUnderlineToggles />
-                              <CodeToggle />
-                              <Separator />
-                              <ListsToggle />
-                              <Separator />
-                              <CreateLink />
-                              <Separator />
-                              <InsertTable />
-                              <InsertCodeBlock />
-                              <InsertThematicBreak />
-                            </>
-                          )
-                        })
-                      ]}
-                    />
-                  </div>
-                )}
-                {showDrawing === todo._id && (
-                  <div className="border-t" style={{ height: '400px' }}>
-                    <SafeTldraw>
-                      <Tldraw>
-                        <DrawingEditor todoId={todo._id} drawingData={todo.drawing} />
-                      </Tldraw>
-                    </SafeTldraw>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Authenticated>
-        <Unauthenticated>
-          <SignInForm />
-        </Unauthenticated>
+              )}
+              {showDrawing === todo._id && (
+                <div className="border-t" style={{ height: '400px' }}>
+                  <SafeTldraw>
+                    <Tldraw>
+                      <DrawingEditor todoId={todo._id} drawingData={todo.drawing} />
+                    </Tldraw>
+                  </SafeTldraw>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

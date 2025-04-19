@@ -12,6 +12,16 @@ const applicationTables = {
     dueDate: v.number(),
     drawing: v.optional(v.string()),
   }).index("by_user", ["userId"]),
+  
+  documents: defineTable({
+    title: v.string(),
+    content: v.optional(v.string()),
+    userId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    emoji: v.optional(v.string()),
+    drawing: v.optional(v.string()),
+  }).index("by_user", ["userId"]),
 };
 
 export default defineSchema({
