@@ -181,8 +181,8 @@ function App() {
           </div>
         </Authenticated>
       </header>
-      <main className="flex flex-1 justify-center items-center p-8">
-        <div className="mx-auto w-full max-w-3xl">
+      <main className={`flex flex-1 justify-center items-center ${activeTab === 'todos' ? 'p-8' : 'p-4'}`}>
+        <div className={`mx-auto w-full h-full ${activeTab === 'todos' ? 'max-w-3xl' : ''}`}>
           <Authenticated>
             {activeTab === 'todos' ? <TodoContent /> : <DocumentContent />}
           </Authenticated>
@@ -209,25 +209,22 @@ function DocumentContent() {
 
   if (selectedDocumentId) {
     return (
-      <div className="flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <button
-            onClick={() => setSelectedDocumentId(null)}
-            className="px-4 py-2 text-blue-500 hover:text-blue-700"
-          >
-            ← Back to Documents
-          </button>
+      <div className="overflow-hidden h-full">
+        <div className="h-[calc(100%-40px)]">
+          <DocumentEditor 
+            documentId={selectedDocumentId} 
+            onBack={() => setSelectedDocumentId(null)} 
+          />
         </div>
-        <DocumentEditor documentId={selectedDocumentId} />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 mx-auto max-w-4xl">
       <div>
         <h1 className="mb-4 text-3xl font-bold text-center accent-text">My Documents</h1>
-        <div className="flex justify-end mb-6">
+        <div className="flex justify-center mb-6">
           <button
             onClick={handleCreateDocument}
             className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600"
@@ -240,7 +237,7 @@ function DocumentContent() {
             <p>You don't have any documents yet. Create your first document!</p>
           </div>
         ) : (
-          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             {documents.map((document) => (
               <li
                 key={document._id}

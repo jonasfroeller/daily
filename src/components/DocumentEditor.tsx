@@ -153,13 +153,16 @@ const DocumentDrawingEditor = track(({ documentId, drawingData }: { documentId: 
 
 interface DocumentEditorProps {
   documentId: Id<"documents">;
+  onBack: () => void;
 }
 
-export const DocumentEditor = ({ documentId }: DocumentEditorProps) => {
+export const DocumentEditor = ({ documentId, onBack }: DocumentEditorProps) => {
   const document = useQuery(api.documents.get, { id: documentId });
   const updateDocument = useMutation(api.documents.update);
   const [title, setTitle] = useState("");
   const [showDrawing, setShowDrawing] = useState(false);
+  const [showMarkdown, setShowMarkdown] = useState(true);
+  const headerRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     if (document) {
@@ -180,89 +183,133 @@ export const DocumentEditor = ({ documentId }: DocumentEditorProps) => {
   const handleContentChange = (content: string) => {
     updateDocument({ id: documentId, content });
   };
+
+  const toggleDrawing = () => {
+    if (showDrawing && showMarkdown) {
+      setShowDrawing(false);
+    } else if (showDrawing && !showMarkdown) {
+      setShowMarkdown(true);
+      setShowDrawing(false);
+    } else {
+      setShowDrawing(true);
+    }
+  };
+
+  const toggleMarkdown = () => {
+    if (showMarkdown && showDrawing) {
+      setShowMarkdown(false);
+    } else if (showMarkdown && !showDrawing) {
+      setShowDrawing(true);
+      setShowMarkdown(false);
+    } else {
+      setShowMarkdown(true);
+    }
+  };
   
   if (!document) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
+    return <div className="flex justify-center items-center">Loading...</div>;
   }
   
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex gap-4 items-center">
-        <input
-          type="text"
-          value={title}
-          onChange={handleTitleChange}
-          onBlur={handleTitleBlur}
-          className="flex-1 px-2 py-1 text-3xl font-bold rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Untitled"
-        />
-        <button
-          onClick={() => setShowDrawing(!showDrawing)}
-          className="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200"
-        >
-          {showDrawing ? "Hide Drawing" : "Show Drawing"}
-        </button>
+    <div className="flex flex-col w-full">
+      {/* Header */}
+      <div ref={headerRef} className="mb-2 bg-white">
+        <div className="flex gap-4 items-center p-2">
+          <button 
+            onClick={onBack}
+            className="flex items-center mr-3 font-medium text-blue-600 bg-transparent border-none cursor-pointer hover:text-blue-800"
+          >
+            ← Back to Documents
+          </button>
+          
+          <input
+            type="text"
+            value={title}
+            onChange={handleTitleChange}
+            onBlur={handleTitleBlur}
+            className="flex-1 px-2 py-1 text-3xl font-bold rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Untitled"
+          />
+          <button
+            onClick={toggleDrawing}
+            className="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200"
+          >
+            {showDrawing ? "Hide Drawing" : "Show Drawing"}
+          </button>
+          <button
+            onClick={toggleMarkdown}
+            className="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200"
+          >
+            {showMarkdown ? "Hide Editor" : "Show Editor"}
+          </button>
+        </div>
       </div>
       
-      {showDrawing && (
-        <div className="rounded-lg border" style={{ height: '400px' }}>
-          <SafeTldraw>
-            <Tldraw>
-              <DocumentDrawingEditor documentId={documentId} drawingData={document.drawing} />
-            </Tldraw>
-          </SafeTldraw>
-        </div>
-      )}
-      
-      <div className="p-4 rounded-lg border">
-        <MDXEditor
-          markdown={document.content ?? ""}
-          onChange={handleContentChange}
-          contentEditableClassName="prose prose-slate max-w-none"
-          plugins={[
-            headingsPlugin(),
-            listsPlugin(),
-            quotePlugin(),
-            markdownShortcutPlugin(),
-            tablePlugin(),
-            thematicBreakPlugin(),
-            codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
-            codeMirrorPlugin({ 
-              codeBlockLanguages: { 
-                js: 'JavaScript',
-                ts: 'TypeScript',
-                tsx: 'TSX',
-                css: 'CSS',
-                html: 'HTML',
-                python: 'Python'
-              }
-            }),
-            linkPlugin(),
-            linkDialogPlugin(),
-            frontmatterPlugin(),
-            directivesPlugin(),
-            toolbarPlugin({
-              toolbarContents: () => (
-                <>
-                  <UndoRedo />
-                  <Separator />
-                  <BlockTypeSelect />
-                  <Separator />
-                  <BoldItalicUnderlineToggles />
-                  <CodeToggle />
-                  <Separator />
-                  <ListsToggle />
-                  <Separator />
-                  <CreateLink />
-                  <Separator />
-                  <InsertTable />
-                  <InsertCodeBlock />
-                  <InsertThematicBreak />
-                </>
-              )
-            })
-          ]}
-        />
+      {/* Content area */}
+      <div className="flex gap-4">
+        {showDrawing && (
+          <div className={`rounded-lg border ${showMarkdown ? 'w-1/2' : 'w-full'}`} style={{ height: '80vh' }}>
+            <SafeTldraw>
+              <Tldraw>
+                <DocumentDrawingEditor documentId={documentId} drawingData={document.drawing} />
+              </Tldraw>
+            </SafeTldraw>
+          </div>
+        )}
+        
+        {showMarkdown && (
+          <div className={`rounded-lg ${showDrawing ? 'w-1/2' : 'w-full'}`} style={{ height: '80vh' }}>
+            <MDXEditor
+              markdown={document.content ?? ""}
+              onChange={handleContentChange}
+              contentEditableClassName="prose prose-slate max-h-full"
+              className="max-h-[80vh] overflow-y-auto"
+              plugins={[
+                headingsPlugin(),
+                listsPlugin(),
+                quotePlugin(),
+                markdownShortcutPlugin(),
+                tablePlugin(),
+                thematicBreakPlugin(),
+                codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
+                codeMirrorPlugin({ 
+                  codeBlockLanguages: { 
+                    js: 'JavaScript',
+                    ts: 'TypeScript',
+                    tsx: 'TSX',
+                    css: 'CSS',
+                    html: 'HTML',
+                    python: 'Python'
+                  }
+                }),
+                linkPlugin(),
+                linkDialogPlugin(),
+                frontmatterPlugin(),
+                directivesPlugin(),
+                toolbarPlugin({
+                  toolbarContents: () => (
+                    <>
+                      <UndoRedo />
+                      <Separator />
+                      <BlockTypeSelect />
+                      <Separator />
+                      <BoldItalicUnderlineToggles />
+                      <CodeToggle />
+                      <Separator />
+                      <ListsToggle />
+                      <Separator />
+                      <CreateLink />
+                      <Separator />
+                      <InsertTable />
+                      <InsertCodeBlock />
+                      <InsertThematicBreak />
+                    </>
+                  )
+                })
+              ]}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
