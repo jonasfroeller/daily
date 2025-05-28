@@ -165,9 +165,8 @@ const DrawingEditor = track(({ todoId, drawingData }: { todoId: Id<"todos">, dra
 function App() {
   const [activeTab, setActiveTab] = useState<'todos' | 'documents'>('todos');
   const todos = useQuery(api.todos.list);
-  const documents = useQuery(api.documents.list);
 
-  const isLoading = (activeTab === 'todos' && todos === undefined) || (activeTab === 'documents' && documents === undefined);
+  const isLoading = activeTab === 'todos' && todos === undefined;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -194,14 +193,15 @@ function App() {
       <main className={`flex flex-1 justify-center items-center ${activeTab === 'todos' ? 'p-8' : 'p-4'}`}>
         <div className={`mx-auto w-full h-full ${activeTab === 'todos' ? 'max-w-3xl' : ''}`}>
           <Authenticated>
-            {isLoading ? (
-              <div className="flex justify-center items-center h-full">
-                <TailwindSpinner />
-              </div>
-            ) : activeTab === 'todos' ? (
-              <TodoContent todos={todos!} />
-            ) : (
-              <DocumentContent documents={documents!} />
+            {activeTab === 'documents' && <AuthenticatedDocumentContent />}
+            {activeTab === 'todos' && (
+              isLoading ? (
+                <div className="flex justify-center items-center h-full">
+                  <TailwindSpinner />
+                </div>
+              ) : (
+                <TodoContent todos={todos!} />
+              )
             )}
           </Authenticated>
           <Unauthenticated>
@@ -214,8 +214,22 @@ function App() {
   );
 }
 
+function AuthenticatedDocumentContent() {
+  const documents = useQuery(api.documents.list);
+  const isLoadingDocuments = documents === undefined;
+
+  if (isLoadingDocuments) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <TailwindSpinner />
+      </div>
+    );
+  }
+  return <DocumentContent documents={documents!} />;
+}
+
 function DocumentContent({ documents: initialDocuments }: { documents: NonNullable<ReturnType<typeof useQuery<typeof api.documents.list>>> }) {
-  const documents = useQuery(api.documents.list) ?? initialDocuments;
+  const documents = initialDocuments;
   const createDocument = useMutation(api.documents.create);
   const deleteDocument = useMutation(api.documents.remove);
   const [selectedDocumentId, setSelectedDocumentId] = useState<Id<"documents"> | null>(null);

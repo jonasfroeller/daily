@@ -1,9 +1,21 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import { Id, Doc } from "./_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const list = query({
+  args: {},
+  returns: v.array(v.object({
+    _id: v.id("documents"),
+    _creationTime: v.number(),
+    title: v.string(),
+    content: v.optional(v.string()),
+    userId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    emoji: v.optional(v.string()),
+    drawing: v.optional(v.string()),
+  })),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
