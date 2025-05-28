@@ -37,6 +37,12 @@ import { Tldraw, track, useEditor } from 'tldraw';
 import 'tldraw/tldraw.css';
 import React from 'react';
 
+const TailwindSpinner = () => (
+  <div className="flex justify-center items-center">
+    <div className="w-12 h-12 rounded-full border-t-2 border-b-2 border-blue-500 animate-spin"></div>
+  </div>
+);
+
 const SafeTldraw = ({ children }: { children: React.ReactNode }) => {
   React.useEffect(() => {
     const originalBeforeUnload = window.onbeforeunload;
@@ -158,6 +164,10 @@ const DrawingEditor = track(({ todoId, drawingData }: { todoId: Id<"todos">, dra
 
 function App() {
   const [activeTab, setActiveTab] = useState<'todos' | 'documents'>('todos');
+  const todos = useQuery(api.todos.list);
+  const documents = useQuery(api.documents.list);
+
+  const isLoading = (activeTab === 'todos' && todos === undefined) || (activeTab === 'documents' && documents === undefined);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -184,7 +194,15 @@ function App() {
       <main className={`flex flex-1 justify-center items-center ${activeTab === 'todos' ? 'p-8' : 'p-4'}`}>
         <div className={`mx-auto w-full h-full ${activeTab === 'todos' ? 'max-w-3xl' : ''}`}>
           <Authenticated>
-            {activeTab === 'todos' ? <TodoContent /> : <DocumentContent />}
+            {isLoading ? (
+              <div className="flex justify-center items-center h-full">
+                <TailwindSpinner />
+              </div>
+            ) : activeTab === 'todos' ? (
+              <TodoContent todos={todos!} />
+            ) : (
+              <DocumentContent documents={documents!} />
+            )}
           </Authenticated>
           <Unauthenticated>
             <SignInForm />
@@ -196,8 +214,8 @@ function App() {
   );
 }
 
-function DocumentContent() {
-  const documents = useQuery(api.documents.list) ?? [];
+function DocumentContent({ documents: initialDocuments }: { documents: NonNullable<ReturnType<typeof useQuery<typeof api.documents.list>>> }) {
+  const documents = useQuery(api.documents.list) ?? initialDocuments;
   const createDocument = useMutation(api.documents.create);
   const deleteDocument = useMutation(api.documents.remove);
   const [selectedDocumentId, setSelectedDocumentId] = useState<Id<"documents"> | null>(null);
@@ -280,8 +298,8 @@ function DocumentContent() {
   );
 }
 
-function TodoContent() {
-  const todos = useQuery(api.todos.list) ?? [];
+function TodoContent({ todos: initialTodos }: { todos: NonNullable<ReturnType<typeof useQuery<typeof api.todos.list>>> }) {
+  const todos = useQuery(api.todos.list) ?? initialTodos;
   const addTodo = useMutation(api.todos.add);
   const toggleTodo = useMutation(api.todos.toggleComplete);
   const updateTodoText = useMutation(api.todos.updateText);
